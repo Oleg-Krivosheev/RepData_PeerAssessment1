@@ -390,7 +390,7 @@ print(xtable(tbl), type="html", include.rownames=FALSE)
 ```
 
 <!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
-<!-- Sun Dec 20 17:35:29 2015 -->
+<!-- Sun Dec 20 17:40:35 2015 -->
 <table border=1>
 <tr> <th> N </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right">  61 </td> <td align="right"> 10766.19 </td> <td align="right"> 10765.00 </td> </tr>
@@ -554,7 +554,9 @@ tables()
 
 We will search in a loop for *NA*, and as soon sa it is found,
 we get interval and select mean value of steps from the helper
-data table. Value will be rounded to represent ordinal number of steps
+data table. Value will be rounded to represent ordinal number of steps.
+Rounding will keep data reasonable, but it will slightly affect mean, median
+and similar values.
 
 
 ```r
@@ -569,7 +571,7 @@ for (k in seq_len(nrow(dt.imp))) {
 #write.csv(dt.imp, file = "imputed.csv")
 ```
 
-*Ought to find a better way for such operation*
+**NB:** Ought to find a better way for such operation.
 
 Now lets check new data table has no *NA* values.
 
@@ -715,7 +717,7 @@ print(xtable(tbl.imp), type="html", include.rownames=FALSE)
 ```
 
 <!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
-<!-- Sun Dec 20 17:35:43 2015 -->
+<!-- Sun Dec 20 17:40:52 2015 -->
 <table border=1>
 <tr> <th> N </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right">  61 </td> <td align="right"> 10765.64 </td> <td align="right"> 10762.00 </td> </tr>
@@ -737,7 +739,7 @@ print(xtable(tbl.sum), type="html", include.rownames=TRUE)
 ```
 
 <!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
-<!-- Sun Dec 20 17:35:43 2015 -->
+<!-- Sun Dec 20 17:40:52 2015 -->
 <table border=1>
 <tr> <th>  </th> <th> N </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right"> Original </td> <td align="right">  61 </td> <td align="right"> 10766.19 </td> <td align="right"> 10765.00 </td> </tr>
@@ -845,3 +847,7 @@ print(p)
 ```
 
 ![plot of chunk time_series_average_steps_by_interval_wd_imp](figure/time_series_average_steps_by_interval_wd_imp-1.png) 
+
+## Conclusion
+
+That's it, folks.

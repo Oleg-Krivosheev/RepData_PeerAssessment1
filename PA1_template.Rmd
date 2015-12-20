@@ -144,7 +144,7 @@ head(dt)
 tail(dt)
 ```
 
-Last step is to set primary key for speedy evaluation
+Last step is to set *date* as primary key for speedy evaluation
 
 ```{r, echo=TRUE}
 setkey(dt, date)
@@ -220,7 +220,7 @@ Because data still has *NA* values, we will filter them out.
 To make a nice table, we will be using [xtable](https://cran.r-project.org/web/packages/xtable/index.html)
 package.
 
-First, we make data table *tbl* filtering out *NA* values
+First, we make data table *tbl* filtering out *NA* values and computing mean and median.
 
 ```{r, echo=TRUE}
 tbl <- dt.steps_by_date[, list(N = .N,  mean = mean(steps, na.rm=TRUE), median = median(steps, na.rm=TRUE))]
@@ -306,6 +306,7 @@ mia_interval <- sum(q)
 ```
 
 Number of missing intervals is equal to `r mia_interval`.
+Thus, we believe there are no missing dates and intervals.
 
 > ### Devise a strategy for filling in all of the missing values in the dataset.
 
@@ -331,11 +332,14 @@ str(dt.imp)
 tables()
 ```
 
+Now we have two data tables in the memory (along the other working tables).
+
 We will search in a loop for *NA*, and as soon sa it is found,
 we get interval and select mean value of steps from the helper
 data table. Value will be rounded to represent ordinal number of steps.
 Rounding will keep data reasonable, but it will slightly affect mean, median
-and similar values.
+and similar values. As an alternative, one might consider imputing unaltered
+mean values. It is possible because we converted *steps* into *numeric*.
 
 ```{r, echo=TRUE}
 for (k in seq_len(nrow(dt.imp))) {
@@ -499,7 +503,7 @@ totaldays <- weekends+weekdays
 ```
 
 So we have `r weekdays` weekdays and `r weekends` weekends in our data table
-for a total of `r totaldays` (which is equal to the number of observations
+for a total of `r totaldays` (which, in turn, is equal to the number of observations
 in the data table).
 
 > ### Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
@@ -511,18 +515,20 @@ Use the imputed values in the `steps` variable.
 dt.imp.meansteps <- dt.imp[, list(mean = mean(steps, na.rm=TRUE)), by = list(wd, interval)]
 ```
 
-Plot two time series (one for weekdays and the other for weekends) of the 5-minute intervals and average number of steps taken (imputed values).
+Plot two time series (one for weekdays and the other for weekends) of the 5-minute intervals and average number of steps taken (using imputed values).
 We again use **ggplot2*, with facets, to make multy-graph plot.
 
 ```{r time_series_average_steps_by_interval_wd_imp, echo=TRUE }
 p <- ggplot(dt.imp.meansteps, aes(x=interval, y=mean, color=wd)) +
 	 facet_wrap(~wd, nrow=2) +
 	 geom_line(size = 1) +
-     labs(title="Time series of the mean number of steps taken per interval and weekday/end") +
+     labs(title="Time series of the mean number of steps taken per interval and day type") +
      labs(x="Interval", y="Mean number of steps") +
 	 theme(legend.position="none")
 print(p)
 ```
+
+As on can see, during weekend people tend to walk less, but in more uniform pattern.
 
 ## Conclusion
 
