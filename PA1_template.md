@@ -236,7 +236,7 @@ tail(dt)
 ## 6:    NA 2012-11-30     2355
 ```
 
-Last step is to set primary key for speedy evaluation
+Last step is to set *date* as primary key for speedy evaluation
 
 
 ```r
@@ -366,7 +366,7 @@ Because data still has *NA* values, we will filter them out.
 To make a nice table, we will be using [xtable](https://cran.r-project.org/web/packages/xtable/index.html)
 package.
 
-First, we make data table *tbl* filtering out *NA* values
+First, we make data table *tbl* filtering out *NA* values and computing mean and median.
 
 
 ```r
@@ -390,7 +390,7 @@ print(xtable(tbl), type="html", include.rownames=FALSE)
 ```
 
 <!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
-<!-- Sun Dec 20 17:40:35 2015 -->
+<!-- Sun Dec 20 17:51:48 2015 -->
 <table border=1>
 <tr> <th> N </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right">  61 </td> <td align="right"> 10766.19 </td> <td align="right"> 10765.00 </td> </tr>
@@ -494,6 +494,7 @@ mia_interval <- sum(q)
 ```
 
 Number of missing intervals is equal to 0.
+Thus, we believe there are no missing dates and intervals.
 
 > ### Devise a strategy for filling in all of the missing values in the dataset.
 
@@ -552,11 +553,14 @@ tables()
 ## Total: 6MB
 ```
 
+Now we have two data tables in the memory (along the other working tables).
+
 We will search in a loop for *NA*, and as soon sa it is found,
 we get interval and select mean value of steps from the helper
 data table. Value will be rounded to represent ordinal number of steps.
 Rounding will keep data reasonable, but it will slightly affect mean, median
-and similar values.
+and similar values. As an alternative, one might consider imputing unaltered
+mean values. It is possible because we converted *steps* into *numeric*.
 
 
 ```r
@@ -717,7 +721,7 @@ print(xtable(tbl.imp), type="html", include.rownames=FALSE)
 ```
 
 <!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
-<!-- Sun Dec 20 17:40:52 2015 -->
+<!-- Sun Dec 20 17:52:03 2015 -->
 <table border=1>
 <tr> <th> N </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right">  61 </td> <td align="right"> 10765.64 </td> <td align="right"> 10762.00 </td> </tr>
@@ -739,7 +743,7 @@ print(xtable(tbl.sum), type="html", include.rownames=TRUE)
 ```
 
 <!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
-<!-- Sun Dec 20 17:40:52 2015 -->
+<!-- Sun Dec 20 17:52:03 2015 -->
 <table border=1>
 <tr> <th>  </th> <th> N </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right"> Original </td> <td align="right">  61 </td> <td align="right"> 10766.19 </td> <td align="right"> 10765.00 </td> </tr>
@@ -819,7 +823,7 @@ totaldays <- weekends+weekdays
 ```
 
 So we have 12960 weekdays and 4608 weekends in our data table
-for a total of 17568 (which is equal to the number of observations
+for a total of 17568 (which, in turn, is equal to the number of observations
 in the data table).
 
 > ### Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
@@ -832,7 +836,7 @@ Use the imputed values in the `steps` variable.
 dt.imp.meansteps <- dt.imp[, list(mean = mean(steps, na.rm=TRUE)), by = list(wd, interval)]
 ```
 
-Plot two time series (one for weekdays and the other for weekends) of the 5-minute intervals and average number of steps taken (imputed values).
+Plot two time series (one for weekdays and the other for weekends) of the 5-minute intervals and average number of steps taken (using imputed values).
 We again use **ggplot2*, with facets, to make multy-graph plot.
 
 
@@ -840,13 +844,15 @@ We again use **ggplot2*, with facets, to make multy-graph plot.
 p <- ggplot(dt.imp.meansteps, aes(x=interval, y=mean, color=wd)) +
 	 facet_wrap(~wd, nrow=2) +
 	 geom_line(size = 1) +
-     labs(title="Time series of the mean number of steps taken per interval and weekday/end") +
+     labs(title="Time series of the mean number of steps taken per interval and day type") +
      labs(x="Interval", y="Mean number of steps") +
 	 theme(legend.position="none")
 print(p)
 ```
 
 ![plot of chunk time_series_average_steps_by_interval_wd_imp](figure/time_series_average_steps_by_interval_wd_imp-1.png) 
+
+As on can see, during weekend people tend to walk less, but in more uniform pattern.
 
 ## Conclusion
 
