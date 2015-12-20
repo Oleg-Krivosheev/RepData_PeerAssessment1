@@ -28,28 +28,12 @@ print(str(dt))
 # make a good primary key
 setkey(dt, date)
 
-wd_or_we <- function(theday) {
-    v <- ""
-
-    if (theday == "Saturday") {
-        v <- "weekend"
-    } else if (theday == "Sunday") {
-        v <- "weekend"
-    } else {
-        v <- "weekday"
-    }
-    v
-}
-
-dt[, wd := as.POSIXlt(dt$date)$wday + 1]
-min(dt$wd)
-max(dt$wd)
 thedays <- c("weekend", rep("weekday",5), "weekend")
-dt[, nwd := as.factor(thedays[dt$wd])]
+dt[, wd := as.factor(thedays[as.POSIXlt(dt$date)$wday + 1])]
 str(dt)
 print(dt)
 
-q <- dt$nwd == "weekday"
+q <- dt$wd == "weekday"
 print(sum(q))
-qq <- dt$nwd == "weekend"
+qq <- dt$wd == "weekend"
 print(sum(qq))
