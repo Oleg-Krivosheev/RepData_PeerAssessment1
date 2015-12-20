@@ -190,7 +190,8 @@ First, we prefer to convert second column to proper date.
 dt <- dt[ , date := as.Date(date, "%Y-%m-%d")]
 ```
 
-Second, we make
+Second, we make *steps* column a numeric, for easy dealing with
+data imputing later.
 
 
 ```r
@@ -389,7 +390,7 @@ print(xtable(tbl), type="html", include.rownames=FALSE)
 ```
 
 <!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
-<!-- Sun Dec 20 14:50:56 2015 -->
+<!-- Sun Dec 20 17:35:29 2015 -->
 <table border=1>
 <tr> <th> N </th> <th> mean </th> <th> median </th>  </tr>
   <tr> <td align="right">  61 </td> <td align="right"> 10766.19 </td> <td align="right"> 10765.00 </td> </tr>
@@ -494,12 +495,353 @@ mia_interval <- sum(q)
 
 Number of missing intervals is equal to 0.
 
-
 > ### Devise a strategy for filling in all of the missing values in the dataset.
 
+We will use very simple strategy. For each missing value we will replace it with
+mean value for the same 5-minute interval computed over all data table.
 
+First, we make helper data table with only two columns, interval versus
+average number of steps per interval, with *NA* values removed.
+
+
+```r
+dt.med = dt[, list(mean=mean(steps, na.rm=TRUE)), by=interval]
+setkey(dt.med, interval)
+str(dt.med)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	288 obs. of  2 variables:
+##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
+##  $ mean    : num  1.717 0.3396 0.1321 0.1509 0.0755 ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "interval"
+```
 
 > ### Create a new dataset that is equal to the original dataset but with the missing data filled in.
 
-> ### Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+Make a copy of the original data table, which is going to be filled with imputed values.
 
+
+```r
+dt.imp <- copy(dt)
+str(dt.imp)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	17568 obs. of  3 variables:
+##  $ steps   : num  NA NA NA NA NA NA NA NA NA NA ...
+##  $ date    : Date, format: "2012-10-01" "2012-10-01" ...
+##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "date"
+```
+
+```r
+tables()
+```
+
+```
+##      NAME                   NROW NCOL MB COLS                KEY     
+## [1,] dt                   17,568    3  1 steps,date,interval date    
+## [2,] dt.imp               17,568    3  1 steps,date,interval date    
+## [3,] dt.med                  288    2  1 interval,mean       interval
+## [4,] dt.steps_by_date         61    2  1 date,steps          date    
+## [5,] dt.steps_by_interval    288    2  1 interval,mean               
+## [6,] tbl                       1    3  1 N,mean,median               
+## Total: 6MB
+```
+
+We will search in a loop for *NA*, and as soon sa it is found,
+we get interval and select mean value of steps from the helper
+data table. Value will be rounded to represent ordinal number of steps
+
+
+```r
+for (k in seq_len(nrow(dt.imp))) {
+    if (is.na(dt.imp$steps[k])) {
+        i <- dt.imp$interval[k]
+        q <- dt.med[interval == i]
+        dt.imp$steps[k] = round(q$mean)
+    }
+}
+
+#write.csv(dt.imp, file = "imputed.csv")
+```
+
+*Ought to find a better way for such operation*
+
+Now lets check new data table has no *NA* values.
+
+
+```r
+q <- is.na(dt.imp$steps)
+sum(q)
+```
+
+```
+## [1] 0
+```
+
+Just in case, check original data table still contains *NA* values.
+
+
+```r
+q <- is.na(dt$steps)
+sum(q)
+```
+
+```
+## [1] 2304
+```
+
+> ### Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment?
+
+We will use new data table to compute the total number of steps taken each day.
+
+
+```r
+dt.imp.steps_by_date <- dt.imp[, sum(steps), by=date]
+setnames(dt.imp.steps_by_date, "V1", "steps")
+
+str(dt.imp.steps_by_date)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	61 obs. of  2 variables:
+##  $ date : Date, format: "2012-10-01" "2012-10-02" ...
+##  $ steps: num  10762 126 11352 12116 13294 ...
+##  - attr(*, "sorted")= chr "date"
+##  - attr(*, ".internal.selfref")=<externalptr>
+```
+
+```r
+head(dt.imp.steps_by_date)
+```
+
+```
+##          date steps
+## 1: 2012-10-01 10762
+## 2: 2012-10-02   126
+## 3: 2012-10-03 11352
+## 4: 2012-10-04 12116
+## 5: 2012-10-05 13294
+## 6: 2012-10-06 15420
+```
+
+```r
+tail(dt.imp.steps_by_date)
+```
+
+```
+##          date steps
+## 1: 2012-11-25 11834
+## 2: 2012-11-26 11162
+## 3: 2012-11-27 13646
+## 4: 2012-11-28 10183
+## 5: 2012-11-29  7047
+## 6: 2012-11-30 10762
+```
+
+Plotting new histogram, first low resolution
+
+
+```r
+p <- ggplot(dt.imp.steps_by_date, aes(x = steps)) +
+       geom_histogram(alpha=0.3, binwidth=1000,
+                     col="red",
+                     aes(fill=..count..)) +
+       scale_fill_gradient("Count", low = "blue", high = "red") +
+       labs(title="Imputed histogram of the total number of steps taken each day") +
+       labs(x="Total number of steps", y="Day count")
+print(p)
+```
+
+![plot of chunk histo_nof_steps_each_day_imp_low](figure/histo_nof_steps_each_day_imp_low-1.png) 
+
+then medium
+
+
+```r
+p <- ggplot(dt.imp.steps_by_date, aes(x = steps)) +
+       geom_histogram(alpha=0.3, binwidth=750,
+                     col="red",
+                     aes(fill=..count..)) +
+       scale_fill_gradient("Count", low = "blue", high = "red") +
+       labs(title="Imputed histogram of the total number of steps taken each day") +
+       labs(x="Total number of steps", y="Day count")
+print(p)
+```
+
+![plot of chunk histo_nof_steps_each_day_imp_med](figure/histo_nof_steps_each_day_imp_med-1.png) 
+
+and, finally, high resolution graph.
+
+
+```r
+p <- ggplot(dt.imp.steps_by_date, aes(x = steps)) +
+       geom_histogram(alpha=0.3, binwidth=500,
+                     col="red",
+                     aes(fill=..count..)) +
+       scale_fill_gradient("Count", low = "blue", high = "red") +
+       labs(title="Imputed histogram of the total number of steps taken each day") +
+       labs(x="Total number of steps", y="Day count")
+print(p)
+```
+
+![plot of chunk histo_nof_steps_each_day_imp_high](figure/histo_nof_steps_each_day_imp_high-1.png) 
+
+As before, we make table of mean and median.
+
+
+```r
+tbl.imp <- dt.imp.steps_by_date[, list(N = .N,  mean = mean(steps, na.rm=TRUE), median = median(steps, na.rm=TRUE))]
+str(tbl.imp)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	1 obs. of  3 variables:
+##  $ N     : int 61
+##  $ mean  : num 10766
+##  $ median: num 10762
+##  - attr(*, ".internal.selfref")=<externalptr>
+```
+
+Then we print *tbl.imp* as a nice embedded HTML table.
+
+
+```r
+print(xtable(tbl.imp), type="html", include.rownames=FALSE)
+```
+
+<!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
+<!-- Sun Dec 20 17:35:43 2015 -->
+<table border=1>
+<tr> <th> N </th> <th> mean </th> <th> median </th>  </tr>
+  <tr> <td align="right">  61 </td> <td align="right"> 10765.64 </td> <td align="right"> 10762.00 </td> </tr>
+   </table>
+
+Now, we combine old and new table to present them together
+
+
+```r
+tbl.sum <- rbind(tbl, tbl.imp)
+row.names(tbl.sum) <- c("Original", "Imputed")
+```
+
+and print it
+
+
+```r
+print(xtable(tbl.sum), type="html", include.rownames=TRUE)
+```
+
+<!-- html table generated in R 3.2.3 by xtable 1.8-0 package -->
+<!-- Sun Dec 20 17:35:43 2015 -->
+<table border=1>
+<tr> <th>  </th> <th> N </th> <th> mean </th> <th> median </th>  </tr>
+  <tr> <td align="right"> Original </td> <td align="right">  61 </td> <td align="right"> 10766.19 </td> <td align="right"> 10765.00 </td> </tr>
+  <tr> <td align="right"> Imputed </td> <td align="right">  61 </td> <td align="right"> 10765.64 </td> <td align="right"> 10762.00 </td> </tr>
+   </table>
+
+Apparently, they are different from non-imputed data, but only slightly.
+
+> ### What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+The impact of our strategy is very slight change in the mean and median
+value of the imputed data table vs original one. The reason for difference being very small
+is quite simple - selected strategy by replacing missing values with mean pretty
+much guarantees that mean and median would be very close to the original one.
+
+From the other hand, from histograms one can see there is now a lot more days having
+particular number of steps taken, so *count* is going up.
+This was an expected development, because now there are a lot more days to
+contribute to the particular histogram bins.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+We will use imputed data table for computations and graphs to answer stated question.
+
+> ### Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+First, we make character vector with our two factors which match accepted
+weekend/weekday numbering scheme (week start with Sunday and ends on Saturday).
+
+
+```r
+thedays <- c("weekend", rep("weekday",5), "weekend")
+print(thedays)
+```
+
+```
+## [1] "weekend" "weekday" "weekday" "weekday" "weekday" "weekday" "weekend"
+```
+
+Then we add another column to the imputed data table with factors as
+observable. For that, we use *date*, coerse it into POSIXlt type,
+take *wday* from ut which would be numeric ranging from 0 to 6.
+We add one to have range from 1 to 7, use it as an index to the
+*thedays* array and finally treat it all as a factor. Ugh!
+
+But it fits into one line...
+
+
+```r
+dt.imp[, wd := as.factor(thedays[as.POSIXlt(dt.imp$date)$wday + 1])]
+str(dt.imp)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	17568 obs. of  4 variables:
+##  $ steps   : num  2 0 0 0 0 2 1 1 0 1 ...
+##  $ date    : Date, format: "2012-10-01" "2012-10-01" ...
+##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
+##  $ wd      : Factor w/ 2 levels "weekday","weekend": 1 1 1 1 1 1 1 1 1 1 ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "date"
+```
+
+One can see we have now two-level factor as a forth column. To check
+if first date is really a weekday, we could visit [2012-10-01](http://www.dayoftheweek.org/?m=October&d=1&y=2012&go=Go#axzz3utuUEy1w)
+on this page, and indeed that day was Monday.
+
+Count number of weekdays and weekends in data table.
+
+
+```r
+q <- dt.imp$wd == "weekday"
+weekdays <- sum(q)
+q <- dt.imp$wd == "weekend"
+weekends <- sum(q)
+totaldays <- weekends+weekdays
+```
+
+So we have 12960 weekdays and 4608 weekends in our data table
+for a total of 17568 (which is equal to the number of observations
+in the data table).
+
+> ### Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+Aggregate the average number of steps taken by 5-minute interval.
+Use the imputed values in the `steps` variable.
+
+
+```r
+dt.imp.meansteps <- dt.imp[, list(mean = mean(steps, na.rm=TRUE)), by = list(wd, interval)]
+```
+
+Plot two time series (one for weekdays and the other for weekends) of the 5-minute intervals and average number of steps taken (imputed values).
+We again use **ggplot2*, with facets, to make multy-graph plot.
+
+
+```r
+p <- ggplot(dt.imp.meansteps, aes(x=interval, y=mean, color=wd)) +
+	 facet_wrap(~wd, nrow=2) +
+	 geom_line(size = 1) +
+     labs(title="Time series of the mean number of steps taken per interval and weekday/end") +
+     labs(x="Interval", y="Mean number of steps") +
+	 theme(legend.position="none")
+print(p)
+```
+
+![plot of chunk time_series_average_steps_by_interval_wd_imp](figure/time_series_average_steps_by_interval_wd_imp-1.png) 
